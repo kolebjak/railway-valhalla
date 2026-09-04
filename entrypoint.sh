@@ -99,7 +99,13 @@ fetch_extracts() {
   done
 }
 
-if [[ -z "${tile_urls}" ]] && ! test -f "${TILE_TAR}" && ! test -d "${TILE_DIR}"; then
+# Matches upstream's own test: an empty ${TILE_DIR} is left behind by a deploy
+# that died mid-build, and counts as "no tiles", not as tiles.
+tiles_present() {
+  test -f "${TILE_TAR}" || [[ -n "$(ls -A "${TILE_DIR}" 2>/dev/null)" ]]
+}
+
+if [[ -z "${tile_urls}" ]] && ! tiles_present; then
   export tile_urls="${DEFAULT_TILE_URLS}"
   echo "WARNING: tile_urls is not set. Falling back to Monaco:"
   echo "         ${DEFAULT_TILE_URLS}"
@@ -111,8 +117,9 @@ if [[ "${force_rebuild}" == "True" ]]; then
   build_tar="Force"
 fi
 
-# Nothing to route over yet: pull the extracts before handing over to upstream.
-if ! test -f "${TILE_TAR}" && ! test -d "${TILE_DIR}"; then
+# Nothing to route over yet: pull the extracts before handing over to upstream,
+# so its unretried curl never has to run.
+if ! tiles_present || [[ "${force_rebuild}" == "True" ]]; then
   fetch_extracts
 fi
 
