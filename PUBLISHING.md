@@ -6,8 +6,15 @@ committed to the repo — they are done once in the UI.
 
 1. Push this repo to GitHub.
 2. Go to [railway.com/templates](https://railway.com/templates) → **New Template**.
-3. Add a service from this GitHub repo. Name it `valhalla` — the companion
-   VROOM template references that name.
+3. Add a service from the **Docker image** `ghcr.io/kolebjak/railway-valhalla:latest`,
+   not from this repo. Name it `valhalla` — the companion VROOM template references
+   that name.
+
+   The image is built and pushed by `.github/workflows/publish-image.yml` on every
+   change to `Dockerfile` or `entrypoint.sh`. Deploying the image rather than the
+   repo means nobody using the template needs a GitHub connection, no one spends
+   build minutes, and every deploy runs the bytes that were tested here. The GHCR
+   package must be **public** — set that once under the repo's Packages page.
 4. **Attach a volume** (right-click the service → *Attach Volume*) with mount path
    `/custom_files`. This is the single most important step: without it, every
    deploy rebuilds tiles from scratch.

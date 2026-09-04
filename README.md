@@ -115,6 +115,18 @@ reachable over Railway's IPv6-only private network.
 Need vehicle routing (multi-stop optimisation) on top? See the companion
 **VROOM + Valhalla** template.
 
+## Image
+
+`ghcr.io/kolebjak/railway-valhalla` — built for `linux/amd64` and `linux/arm64` on
+every change to `Dockerfile` or `entrypoint.sh`, and what the Railway template
+deploys. Pull it directly if you would rather not build:
+
+```bash
+docker run -p 8002:8002 -v valhalla-tiles:/custom_files \
+  -e tile_urls=https://download.openstreetmap.fr/extracts/europe/monaco-latest.osm.pbf \
+  ghcr.io/kolebjak/railway-valhalla:latest
+```
+
 ## Local development
 
 ```bash
