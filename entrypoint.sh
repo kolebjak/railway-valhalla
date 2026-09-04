@@ -20,7 +20,8 @@ export serve_tiles="${serve_tiles:-True}"
 # to build) so a template deploy with no variables set still comes up serving
 # instead of exiting. Loudly, because the region is almost certainly not the one
 # the user wants.
-DEFAULT_TILE_URLS="https://download.geofabrik.de/europe/monaco-latest.osm.pbf"
+# The osm.fr mirror, not Geofabrik: Geofabrik refuses connections from Railway.
+DEFAULT_TILE_URLS="https://download.openstreetmap.fr/extracts/europe/monaco-latest.osm.pbf"
 export tile_urls="${tile_urls:-}"
 
 . /valhalla/scripts/helpers.sh
@@ -137,7 +138,7 @@ if [[ -z "${tile_urls}" ]] && ! tiles_present; then
   export tile_urls="${DEFAULT_TILE_URLS}"
   echo "WARNING: tile_urls is not set. Falling back to Monaco:"
   echo "         ${DEFAULT_TILE_URLS}"
-  echo "         Set tile_urls to your own region from https://download.geofabrik.de/"
+  echo "         Set tile_urls to your own region from https://download.openstreetmap.fr/extracts/"
   echo "         and redeploy; the volume rebuilds with the new region."
 fi
 

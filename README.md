@@ -34,9 +34,14 @@ Deploying with nothing set gives you a working router over Monaco, so you can se
 it answer before committing to a region. Two things to change after that:
 
 1. **`tile_urls`** — one or more `.osm.pbf` URLs, space separated. Grab your region
-   from [Geofabrik](https://download.geofabrik.de/):
-   `https://download.geofabrik.de/europe/monaco-latest.osm.pbf`. Unset, it falls
-   back to Monaco and says so in the deploy log.
+   from [the osm.fr mirror](https://download.openstreetmap.fr/extracts/):
+   `https://download.openstreetmap.fr/extracts/europe/monaco-latest.osm.pbf`. Unset, it falls back to
+   Monaco and says so in the deploy log.
+
+   Geofabrik is the better-known source, but Railway cannot reach it — connections
+   to `download.geofabrik.de` are refused at TCP level from a deployed service, so
+   the default points at osm.fr instead. Its paths do not match Geofabrik's, so
+   browse the mirror rather than rewriting a Geofabrik URL by hand.
 2. **A volume mounted at `/custom_files`.** Tiles live here. Without a volume every
    deploy rebuilds them from scratch.
 
