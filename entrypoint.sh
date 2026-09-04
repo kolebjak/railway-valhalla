@@ -65,14 +65,42 @@ require_uint server_threads "${server_threads}"
 # resumable, and dropped into ${CUSTOM_FILES}, where configure_valhalla.sh finds
 # it as a local file and skips its own download path entirely.
 report_download_failure() {
-  echo "ERROR: could not download ${1}" >&2
-  if curl --fail --silent --show-error --max-time 15 --output /dev/null https://api.github.com; then
-    echo "       This service does have outbound internet: api.github.com answered." >&2
-    echo "       So the file host refused or blocked the request. Try another mirror," >&2
-    echo "       e.g. https://download.openstreetmap.fr/extracts/ or a BBBike extract." >&2
+  local url="${1}" host
+  host="${url#*://}"; host="${host%%/*}"; host="${host%%:[0-9]*}"
+
+  echo "ERROR: could not download ${url}" >&2
+  echo "       Resolved addresses for ${host}:" >&2
+  getent ahosts "${host}" 2>/dev/null | awk '{print "         " $1}' | sort -u >&2 \
+    || echo "         (none - DNS lookup failed)" >&2
+
+  probe "control host, any stack" https://www.google.com/generate_204
+  probe "control host, IPv4 only" -4 https://www.google.com/generate_204
+  probe "control host, IPv6 only" -6 https://www.google.com/generate_204
+  probe "the file host        " "https://${host}/"
+
+  echo "       If the control host works and the file host does not, that host is" >&2
+  echo "       unreachable from Railway; switch tile_urls to a mirror, e.g." >&2
+  echo "       https://download.openstreetmap.fr/extracts/europe/monaco-latest.osm.pbf" >&2
+  echo "       If every probe fails, this service has no outbound internet at all." >&2
+}
+
+# Reports reachability without conflating "the server said no" (an HTTP status,
+# which proves the packets got there) with "could not connect" (they did not).
+probe() {
+  local label="${1}" code exit_code
+  shift
+  code="$(curl --silent --show-error --output /dev/null --max-time 15 \
+            --write-out '%{http_code}' "$@" 2>/dev/null)" && exit_code=0 || exit_code=$?
+  if [[ ${exit_code} -eq 0 || ${exit_code} -eq 22 ]]; then
+    echo "       ${label}: reachable (HTTP ${code})" >&2
   else
-    echo "       This service cannot reach the public internet at all: api.github.com" >&2
-    echo "       fails the same way. This is a Railway egress problem, not a bad URL." >&2
+    case ${exit_code} in
+      6)  echo "       ${label}: DNS lookup failed" >&2 ;;
+      7)  echo "       ${label}: connection refused or no route" >&2 ;;
+      28) echo "       ${label}: timed out" >&2 ;;
+      35) echo "       ${label}: TLS handshake failed" >&2 ;;
+      *)  echo "       ${label}: failed (curl exit ${exit_code})" >&2 ;;
+    esac
   fi
 }
 
