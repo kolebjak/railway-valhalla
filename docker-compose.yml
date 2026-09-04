@@ -1,0 +1,15 @@
+# Local parity check. Same image and entrypoint Railway runs.
+# Monaco is ~700 KB and builds in about a minute; swap tile_urls for your region.
+services:
+  valhalla:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "${VALHALLA_HOST_PORT:-8002}:8002"
+    volumes:
+      - valhalla-tiles:/custom_files
+    environment:
+      tile_urls: https://download.geofabrik.de/europe/monaco-latest.osm.pbf
+
+volumes:
+  valhalla-tiles:
