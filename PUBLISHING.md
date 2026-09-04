@@ -15,7 +15,7 @@ committed to the repo — they are done once in the UI.
 
    | Variable | Value | Mark as |
    | --- | --- | --- |
-   | `tile_urls` | `https://download.geofabrik.de/europe/monaco-latest.osm.pbf` | Required, with a description pointing at Geofabrik |
+   | `tile_urls` | `https://download.geofabrik.de/europe/monaco-latest.osm.pbf` | Optional, with a description pointing at Geofabrik |
    | `server_threads` | `1` | Optional |
    | `VALHALLA_MAX_LOCATIONS` | `2000` | Optional |
    | `VALHALLA_MAX_MATRIX_PAIRS` | `4000000` | Optional |

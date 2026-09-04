@@ -25,11 +25,13 @@ on Railway:
 
 ## Setup
 
-Two things are required:
+Deploying with nothing set gives you a working router over Monaco, so you can see
+it answer before committing to a region. Two things to change after that:
 
-1. **`tile_urls`** — one or more `.osm.pbf` URLs, space separated. Grab a region
+1. **`tile_urls`** — one or more `.osm.pbf` URLs, space separated. Grab your region
    from [Geofabrik](https://download.geofabrik.de/):
-   `https://download.geofabrik.de/europe/monaco-latest.osm.pbf`
+   `https://download.geofabrik.de/europe/monaco-latest.osm.pbf`. Unset, it falls
+   back to Monaco and says so in the deploy log.
 2. **A volume mounted at `/custom_files`.** Tiles live here. Without a volume every
    deploy rebuilds them from scratch.
 
@@ -63,7 +65,7 @@ full list):
 
 | Variable | Default | What it does |
 | --- | --- | --- |
-| `tile_urls` | — | **Required.** Space-separated `.osm.pbf` URLs. |
+| `tile_urls` | Monaco | Space-separated `.osm.pbf` URLs. Falls back to Monaco with a warning. |
 | `build_admins` | `True` | Admin areas. Needed for country-crossing logic. |
 | `build_time_zones` | `True` | Timezone database. Needed for time-dependent routing. |
 | `build_elevation` | `False` | Elevation tiles. Large; only for bike/foot grades. |

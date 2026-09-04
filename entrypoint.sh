@@ -16,7 +16,11 @@ export traffic_name="${traffic_name:-}"
 export build_tar="${build_tar:-True}"
 export force_rebuild="${force_rebuild:-False}"
 export serve_tiles="${serve_tiles:-True}"
-# tile_urls has no default in the image; keep nounset from tripping on it.
+# tile_urls has no default in the image. Default it to Monaco (~700 KB, ~1 minute
+# to build) so a template deploy with no variables set still comes up serving
+# instead of exiting. Loudly, because the region is almost certainly not the one
+# the user wants.
+DEFAULT_TILE_URLS="https://download.geofabrik.de/europe/monaco-latest.osm.pbf"
 export tile_urls="${tile_urls:-}"
 
 . /valhalla/scripts/helpers.sh
@@ -58,10 +62,11 @@ export server_threads="${server_threads:-1}"
 require_uint server_threads "${server_threads}"
 
 if [[ -z "${tile_urls}" ]] && ! test -f "${TILE_TAR}" && ! test -d "${TILE_DIR}"; then
-  echo "ERROR: no tiles and no tile_urls." >&2
-  echo "       Set tile_urls to one or more .osm.pbf URLs, space separated, e.g." >&2
-  echo "       https://download.geofabrik.de/europe/monaco-latest.osm.pbf" >&2
-  exit 1
+  export tile_urls="${DEFAULT_TILE_URLS}"
+  echo "WARNING: tile_urls is not set. Falling back to Monaco:"
+  echo "         ${DEFAULT_TILE_URLS}"
+  echo "         Set tile_urls to your own region from https://download.geofabrik.de/"
+  echo "         and redeploy; the volume rebuilds with the new region."
 fi
 
 if [[ "${force_rebuild}" == "True" ]]; then
