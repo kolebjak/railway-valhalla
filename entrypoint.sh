@@ -37,7 +37,8 @@ require_uint() {
 # device", `tcp://*:PORT` silently binds v4 only), and Railway's private network
 # is IPv6-only. So Valhalla listens on loopback and a dual-stack socat proxy owns
 # $PORT, which serves both the public edge (v4) and private peers (v6).
-LISTEN_PORT="${PORT:-8002}"
+EXPOSED_PORT=8002
+LISTEN_PORT="${PORT:-${EXPOSED_PORT}}"
 require_uint PORT "${LISTEN_PORT}"
 INTERNAL_PORT="${VALHALLA_INTERNAL_PORT:-8102}"
 require_uint VALHALLA_INTERNAL_PORT "${INTERNAL_PORT}"
@@ -210,34 +211,48 @@ if [[ "${serve_tiles}" != "True" ]]; then
   exit 0
 fi
 
-echo "INFO: serving on port ${LISTEN_PORT} (valhalla on 127.0.0.1:${INTERNAL_PORT}) with ${server_threads} thread(s)."
-echo "INFO: raised max_locations=${MAX_LOCATIONS}, max_matrix_location_pairs=${MAX_MATRIX_PAIRS} for: ${patched_costings}."
-
-# ipv6only=0 so the one listener answers both v6 (private network) and
-# v4-mapped (public edge, local Docker). Falls back to v4 if the kernel has no
-# IPv6 at all, which costs private networking but keeps the service up.
+# ipv6only=0 so each listener answers both v6 (private network) and v4-mapped
+# (public edge, local Docker). Falls back to v4 if the kernel has no IPv6 at all,
+# which costs private networking but keeps the service up.
 proxy() {
-  if ! socat "TCP6-LISTEN:${LISTEN_PORT},fork,reuseaddr,ipv6only=0" "TCP4:127.0.0.1:${INTERNAL_PORT}"; then
-    echo "WARNING: IPv6 listener unavailable; serving IPv4 only. Private networking will not work." >&2
-    exec socat "TCP4-LISTEN:${LISTEN_PORT},fork,reuseaddr" "TCP4:127.0.0.1:${INTERNAL_PORT}"
+  local port="${1}"
+  if ! socat "TCP6-LISTEN:${port},fork,reuseaddr,ipv6only=0" "TCP4:127.0.0.1:${INTERNAL_PORT}"; then
+    echo "WARNING: IPv6 listener on ${port} unavailable; serving IPv4 only there." >&2
+    echo "         Private networking will not reach this port." >&2
+    exec socat "TCP4-LISTEN:${port},fork,reuseaddr" "TCP4:127.0.0.1:${INTERNAL_PORT}"
   fi
 }
 
-valhalla_service "${CONFIG_FILE}" "${server_threads}" &
-valhalla_pid=$!
-proxy &
-proxy_pid=$!
+# Railway injects PORT (8080 today) but points the public domain at whatever
+# target port the domain was created with, which is 8002 here because that is
+# what the Dockerfile EXPOSEs. The two do not have to agree, and when they do
+# not the edge returns 502 against a perfectly healthy container. Listening on
+# both removes the failure mode entirely.
+listen_ports=("${LISTEN_PORT}")
+if [[ "${EXPOSED_PORT}" != "${LISTEN_PORT}" && "${EXPOSED_PORT}" != "${INTERNAL_PORT}" ]]; then
+  listen_ports+=("${EXPOSED_PORT}")
+fi
 
-# Either process dying is fatal: a live proxy in front of a dead router answers
+echo "INFO: serving on port(s) ${listen_ports[*]} (valhalla on 127.0.0.1:${INTERNAL_PORT}) with ${server_threads} thread(s)."
+echo "INFO: raised max_locations=${MAX_LOCATIONS}, max_matrix_location_pairs=${MAX_MATRIX_PAIRS} for: ${patched_costings}."
+
+valhalla_service "${CONFIG_FILE}" "${server_threads}" &
+pids=("$!")
+for port in "${listen_ports[@]}"; do
+  proxy "${port}" &
+  pids+=("$!")
+done
+
+# Any of these dying is fatal: a live proxy in front of a dead router answers
 # every request with a connection error, which Railway cannot distinguish from a
 # healthy service.
 shutdown() {
   trap - TERM INT
-  kill "${valhalla_pid}" "${proxy_pid}" 2>/dev/null || true
+  kill "${pids[@]}" 2>/dev/null || true
 }
 trap shutdown TERM INT
 
 status=0
-wait -n "${valhalla_pid}" "${proxy_pid}" || status=$?
+wait -n "${pids[@]}" || status=$?
 shutdown
 exit "${status}"

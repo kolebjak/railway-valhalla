@@ -23,6 +23,10 @@ on Railway:
   single unretried `curl` where one refused connection fails the whole deploy. If
   it still cannot fetch, it probes a control host and says whether the problem is
   the file host or the service's own egress.
+- **Answers on whichever port the edge targets.** Railway injects `PORT=8080`
+  but creates the public domain against the Dockerfile's exposed 8002. When those
+  disagree the edge returns 502 against a healthy container, so the service
+  listens on both.
 - **Answers on IPv6.** Valhalla's zmq listener cannot bind IPv6 — `tcp://[::]:PORT`
   dies with `No such device`, `tcp://*:PORT` quietly binds IPv4 only — and Railway's
   private network is IPv6-only. The router listens on loopback and a dual-stack
@@ -62,7 +66,7 @@ Added by this template:
 
 | Variable | Default | What it does |
 | --- | --- | --- |
-| `PORT` | `8002` | Set by Railway. The dual-stack listener binds it. |
+| `PORT` | `8002` | Set by Railway (8080 there). Listeners bind it *and* 8002. |
 | `VALHALLA_MAX_LOCATIONS` | `500` | Max locations per matrix request, every costing. |
 | `VALHALLA_MAX_MATRIX_PAIRS` | `250000` | Max source×target pairs. Keep it at `VALHALLA_MAX_LOCATIONS²`, or the smaller limit binds first. |
 | `VALHALLA_INTERNAL_PORT` | `8102` | Loopback port Valhalla itself listens on, behind the proxy. |
