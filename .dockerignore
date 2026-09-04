@@ -1,0 +1,10 @@
+.git/
+.idea/
+custom_files/
+*.pbf
+*.tar
+docker-compose.yml
+test.sh
+README.md
+PUBLISHING.md
+LICENSE

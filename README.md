@@ -18,6 +18,10 @@ on Railway:
   the service OOMs under load.
 - **Builds the tile extract**, so workers mmap one shared archive instead of each
   holding a private tile cache.
+- **Answers on IPv6.** Valhalla's zmq listener cannot bind IPv6 — `tcp://[::]:PORT`
+  dies with `No such device`, `tcp://*:PORT` quietly binds IPv4 only — and Railway's
+  private network is IPv6-only. The router listens on loopback and a dual-stack
+  proxy owns `$PORT`, so public and private-network callers both reach it.
 
 ## Setup
 
@@ -46,11 +50,11 @@ Added by this template:
 
 | Variable | Default | What it does |
 | --- | --- | --- |
-| `PORT` | `8002` | Set by Railway. The HTTP listener binds it. |
+| `PORT` | `8002` | Set by Railway. The dual-stack listener binds it. |
 | `VALHALLA_MAX_LOCATIONS` | `2000` | Max locations per matrix request. |
 | `VALHALLA_MAX_MATRIX_PAIRS` | `4000000` | Max source×target pairs. |
-| `VALHALLA_COSTINGS` | `auto,taxi` | Which costings get the raised limits. |
-| `VALHALLA_LISTEN_HOST` | `*` | Set to `[::]` if a private-network peer cannot connect. |
+| `VALHALLA_COSTINGS` | `auto,taxi` | Which costings get the raised limits. Unknown names are warned about and skipped. |
+| `VALHALLA_INTERNAL_PORT` | `8102` | Loopback port Valhalla itself listens on, behind the proxy. |
 | `server_threads` | `1` | Worker threads. See below before raising. |
 
 Passed through to the upstream image (see its
@@ -90,6 +94,8 @@ curl "$VALHALLA_URL/route" -H 'Content-Type: application/json' -d '{
 From another Railway service in the same project, use the private network:
 `http://${{valhalla.RAILWAY_PRIVATE_DOMAIN}}:${{valhalla.PORT}}`. Private
 networking carries no egress cost and keeps the router off the public internet.
+It works because of the dual-stack proxy described above; stock Valhalla is not
+reachable over Railway's IPv6-only private network.
 
 Need vehicle routing (multi-stop optimisation) on top? See the companion
 **VROOM + Valhalla** template.

@@ -21,8 +21,22 @@ committed to the repo — they are done once in the UI.
    | `VALHALLA_MAX_MATRIX_PAIRS` | `4000000` | Optional |
    | `VALHALLA_COSTINGS` | `auto,taxi` | Optional |
 
-   Give `tile_urls` a default that is small (Monaco) so a first-time deploy
-   finishes in a minute rather than an hour.
+   The composer never reads these from the repo — `railway.json` carries build and
+   deploy settings only, so "No variables added" is expected until you add them by
+   hand. **Add variables** → *Raw Editor* takes the whole block at once:
+
+   ```
+   tile_urls=https://download.geofabrik.de/europe/monaco-latest.osm.pbf
+   server_threads=1
+   VALHALLA_MAX_LOCATIONS=2000
+   VALHALLA_MAX_MATRIX_PAIRS=4000000
+   VALHALLA_COSTINGS=auto,taxi
+   ```
+
+   Every one of these already has the same default baked into `entrypoint.sh`, so
+   only `tile_urls` is load-bearing; the rest are there to be discoverable and
+   editable at deploy time. Keep the `tile_urls` default small (Monaco) so a
+   first-time deploy finishes in a minute rather than an hour.
 6. **Leave the healthcheck path empty.** First boot builds tiles before serving,
    which outlasts any healthcheck window and would fail the deploy.
 7. Enable public networking only if the router should be reachable from outside
