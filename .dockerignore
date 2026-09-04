@@ -8,3 +8,4 @@ test.sh
 README.md
 PUBLISHING.md
 LICENSE
+.env.example

@@ -21,17 +21,10 @@ committed to the repo — they are done once in the UI.
    | `VALHALLA_MAX_MATRIX_PAIRS` | `4000000` | Optional |
    | `VALHALLA_COSTINGS` | `auto,taxi` | Optional |
 
-   The composer never reads these from the repo — `railway.json` carries build and
-   deploy settings only, so "No variables added" is expected until you add them by
-   hand. **Add variables** → *Raw Editor* takes the whole block at once:
-
-   ```
-   tile_urls=https://download.geofabrik.de/europe/monaco-latest.osm.pbf
-   server_threads=1
-   VALHALLA_MAX_LOCATIONS=2000
-   VALHALLA_MAX_MATRIX_PAIRS=4000000
-   VALHALLA_COSTINGS=auto,taxi
-   ```
+   Railway scans the repo root for `.env*` files and offers their keys for import,
+   so `.env.example` should populate this in one click. If it does not, **Add
+   variables** → *Raw Editor* takes the same block pasted by hand. `railway.json`
+   cannot carry variables — it is build and deploy settings only.
 
    Every one of these already has the same default baked into `entrypoint.sh`, so
    only `tile_urls` is load-bearing; the rest are there to be discoverable and
