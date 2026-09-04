@@ -45,11 +45,10 @@ if [[ "${INTERNAL_PORT}" == "${LISTEN_PORT}" ]]; then
 fi
 
 # VROOM builds an NxN duration matrix over every stop in a solve. Valhalla's
-# stock caps (max_locations 20, max_matrix_location_pairs 2500) reject anything
-# past 20 stops with "Exceeded max locations: 20".
+# stock caps reject anything past 50 stops, and past 20 for truck, with
+# "Exceeded max locations: 20".
 MAX_LOCATIONS="${VALHALLA_MAX_LOCATIONS:-500}"
 MAX_MATRIX_PAIRS="${VALHALLA_MAX_MATRIX_PAIRS:-250000}"
-COSTINGS="${VALHALLA_COSTINGS:-auto,taxi}"
 require_uint VALHALLA_MAX_LOCATIONS "${MAX_LOCATIONS}"
 require_uint VALHALLA_MAX_MATRIX_PAIRS "${MAX_MATRIX_PAIRS}"
 
@@ -93,35 +92,34 @@ elif [[ "${build_tar}" != "True" && "${build_tar}" != "Force" ]]; then
   echo "WARNING: build_tar is '${build_tar}'. Serving loose tiles; expect higher memory per thread."
 fi
 
-# Only patch costings the generated config actually knows about. jq would happily
-# create `service_limits.autp`, leaving the real limit at 20 with no error.
-known_costings="$(jq -r '.service_limits | keys[]' "${CONFIG_FILE}")"
-patch_costings=()
-for costing in ${COSTINGS//,/ }; do
-  if grep -qx -- "${costing}" <<<"${known_costings}"; then
-    patch_costings+=("${costing}")
-  else
-    echo "WARNING: '${costing}' is not a costing in valhalla.json; its limits stay at the stock 20." >&2
-  fi
-done
-if [[ ${#patch_costings[@]} -eq 0 ]]; then
-  echo "ERROR: VALHALLA_COSTINGS ('${COSTINGS}') matched no costing in valhalla.json." >&2
-  exit 1
-fi
-costings_json="$(printf '%s\n' "${patch_costings[@]}" | jq -R . | jq -s .)"
-
+# Raise the limits on every matrix-capable costing. `max_matrix_location_pairs`
+# is what identifies one: isochrone, centroid, skadi, trace and the scalar
+# entries under service_limits have no such key and are left alone, as is
+# multimodal, where upstream pins the pair limit at 0 because matrix is not
+# supported for it. Only keys that already exist are rewritten, so a config
+# change upstream cannot silently grow a bogus limit here.
 jq \
-  --argjson costings "${costings_json}" \
   --argjson max_locations "${MAX_LOCATIONS}" \
   --argjson max_matrix_pairs "${MAX_MATRIX_PAIRS}" \
   --arg listen "tcp://127.0.0.1:${INTERNAL_PORT}" '
-    reduce $costings[] as $costing (.;
-      .service_limits[$costing].max_locations = $max_locations
-      | .service_limits[$costing].max_matrix_location_pairs = $max_matrix_pairs
+    .service_limits |= with_entries(
+      if (.value | type) == "object" and (.value | has("max_matrix_location_pairs"))
+      then .value |= (
+        (if has("max_locations") then .max_locations = $max_locations else . end)
+        | (if .max_matrix_location_pairs > 0
+           then .max_matrix_location_pairs = $max_matrix_pairs
+           else . end)
+      )
+      else . end
     )
     | .httpd.service.listen = $listen
   ' "${CONFIG_FILE}" > "${CONFIG_FILE}.patched"
 mv "${CONFIG_FILE}.patched" "${CONFIG_FILE}"
+
+patched_costings="$(jq -r '
+  .service_limits | to_entries
+  | map(select((.value | type) == "object" and (.value.max_matrix_location_pairs // 0) > 0) | .key)
+  | join(", ")' "${CONFIG_FILE}")"
 
 find "${CUSTOM_FILES}" -type d -exec chmod 775 {} \;
 find "${CUSTOM_FILES}" -type f -exec chmod 664 {} \;
@@ -132,7 +130,7 @@ if [[ "${serve_tiles}" != "True" ]]; then
 fi
 
 echo "INFO: serving on port ${LISTEN_PORT} (valhalla on 127.0.0.1:${INTERNAL_PORT}) with ${server_threads} thread(s)."
-echo "INFO: raised ${patch_costings[*]} limits to max_locations=${MAX_LOCATIONS}, max_matrix_location_pairs=${MAX_MATRIX_PAIRS}."
+echo "INFO: raised max_locations=${MAX_LOCATIONS}, max_matrix_location_pairs=${MAX_MATRIX_PAIRS} for: ${patched_costings}."
 
 # ipv6only=0 so the one listener answers both v6 (private network) and
 # v4-mapped (public edge, local Docker). Falls back to v4 if the kernel has no

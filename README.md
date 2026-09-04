@@ -9,10 +9,11 @@ matrices, isochrones and map matching over any OpenStreetMap region you point it
 on Railway:
 
 - **Binds `$PORT`.** The stock image hardcodes 8002, which Railway will not route to.
-- **Raises the matrix limits.** Stock Valhalla rejects any matrix past 20 locations
-  (`Exceeded max locations: 20`). No environment variable exists for this upstream,
-  so the generated config is patched on every boot. Needed by anything that builds
-  an NxN matrix — VROOM, OR-Tools, your own solver.
+- **Raises the matrix limits.** Stock Valhalla caps matrices at 50 locations, and
+  at 20 for `truck` (`Exceeded max locations: 20`). No environment variable exists
+  for this upstream, so the generated config is patched on every boot — for every
+  matrix-capable costing, not a chosen few. Needed by anything that builds an NxN
+  matrix — VROOM, OR-Tools, your own solver.
 - **Defaults to one server thread.** A container reads the *host* core count (32+ on
   Railway) and Valhalla spawns a worker per thread. Left at the upstream default,
   the service OOMs under load.
@@ -53,9 +54,8 @@ Added by this template:
 | Variable | Default | What it does |
 | --- | --- | --- |
 | `PORT` | `8002` | Set by Railway. The dual-stack listener binds it. |
-| `VALHALLA_MAX_LOCATIONS` | `500` | Max locations per matrix request. |
+| `VALHALLA_MAX_LOCATIONS` | `500` | Max locations per matrix request, every costing. |
 | `VALHALLA_MAX_MATRIX_PAIRS` | `250000` | Max source×target pairs. Keep it at `VALHALLA_MAX_LOCATIONS²`, or the smaller limit binds first. |
-| `VALHALLA_COSTINGS` | `auto,taxi` | Which costings get the raised limits. Unknown names are warned about and skipped. |
 | `VALHALLA_INTERNAL_PORT` | `8102` | Loopback port Valhalla itself listens on, behind the proxy. |
 | `server_threads` | `1` | Worker threads. See below before raising. |
 

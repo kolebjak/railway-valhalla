@@ -19,7 +19,6 @@ committed to the repo — they are done once in the UI.
    | `server_threads` | `1` | Optional |
    | `VALHALLA_MAX_LOCATIONS` | `500` | Optional |
    | `VALHALLA_MAX_MATRIX_PAIRS` | `250000` | Optional |
-   | `VALHALLA_COSTINGS` | `auto,taxi` | Optional |
 
    Railway scans the repo root for `.env*` files and offers their keys for import,
    so `.env.example` should populate this in one click. If it does not, **Add
