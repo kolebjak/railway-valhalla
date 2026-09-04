@@ -53,8 +53,8 @@ Added by this template:
 | Variable | Default | What it does |
 | --- | --- | --- |
 | `PORT` | `8002` | Set by Railway. The dual-stack listener binds it. |
-| `VALHALLA_MAX_LOCATIONS` | `2000` | Max locations per matrix request. |
-| `VALHALLA_MAX_MATRIX_PAIRS` | `4000000` | Max source×target pairs. |
+| `VALHALLA_MAX_LOCATIONS` | `500` | Max locations per matrix request. |
+| `VALHALLA_MAX_MATRIX_PAIRS` | `250000` | Max source×target pairs. Keep it at `VALHALLA_MAX_LOCATIONS²`, or the smaller limit binds first. |
 | `VALHALLA_COSTINGS` | `auto,taxi` | Which costings get the raised limits. Unknown names are warned about and skipped. |
 | `VALHALLA_INTERNAL_PORT` | `8102` | Loopback port Valhalla itself listens on, behind the proxy. |
 | `server_threads` | `1` | Worker threads. See below before raising. |

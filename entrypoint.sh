@@ -47,8 +47,8 @@ fi
 # VROOM builds an NxN duration matrix over every stop in a solve. Valhalla's
 # stock caps (max_locations 20, max_matrix_location_pairs 2500) reject anything
 # past 20 stops with "Exceeded max locations: 20".
-MAX_LOCATIONS="${VALHALLA_MAX_LOCATIONS:-2000}"
-MAX_MATRIX_PAIRS="${VALHALLA_MAX_MATRIX_PAIRS:-4000000}"
+MAX_LOCATIONS="${VALHALLA_MAX_LOCATIONS:-500}"
+MAX_MATRIX_PAIRS="${VALHALLA_MAX_MATRIX_PAIRS:-250000}"
 COSTINGS="${VALHALLA_COSTINGS:-auto,taxi}"
 require_uint VALHALLA_MAX_LOCATIONS "${MAX_LOCATIONS}"
 require_uint VALHALLA_MAX_MATRIX_PAIRS "${MAX_MATRIX_PAIRS}"
