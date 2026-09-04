@@ -19,6 +19,10 @@ on Railway:
   the service OOMs under load.
 - **Builds the tile extract**, so workers mmap one shared archive instead of each
   holding a private tile cache.
+- **Downloads the extract itself**, retried and resumable, instead of upstream's
+  single unretried `curl` where one refused connection fails the whole deploy. If
+  it still cannot fetch, it probes a control host and says whether the problem is
+  the file host or the service's own egress.
 - **Answers on IPv6.** Valhalla's zmq listener cannot bind IPv6 — `tcp://[::]:PORT`
   dies with `No such device`, `tcp://*:PORT` quietly binds IPv4 only — and Railway's
   private network is IPv6-only. The router listens on loopback and a dual-stack

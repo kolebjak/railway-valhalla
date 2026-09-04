@@ -60,6 +60,45 @@ require_uint VALHALLA_MAX_MATRIX_PAIRS "${MAX_MATRIX_PAIRS}"
 export server_threads="${server_threads:-1}"
 require_uint server_threads "${server_threads}"
 
+# Upstream downloads the extract with a single curl and no retries, so one
+# refused connection kills the whole deploy. Fetch it here instead: retried,
+# resumable, and dropped into ${CUSTOM_FILES}, where configure_valhalla.sh finds
+# it as a local file and skips its own download path entirely.
+report_download_failure() {
+  echo "ERROR: could not download ${1}" >&2
+  if curl --fail --silent --show-error --max-time 15 --output /dev/null https://api.github.com; then
+    echo "       This service does have outbound internet: api.github.com answered." >&2
+    echo "       So the file host refused or blocked the request. Try another mirror," >&2
+    echo "       e.g. https://download.openstreetmap.fr/extracts/ or a BBBike extract." >&2
+  else
+    echo "       This service cannot reach the public internet at all: api.github.com" >&2
+    echo "       fails the same way. This is a Railway egress problem, not a bad URL." >&2
+  fi
+}
+
+fetch_extracts() {
+  local url name target
+  for url in ${tile_urls}; do
+    name="$(basename "${url%%\?*}")"
+    target="${CUSTOM_FILES}/${name}"
+    if [[ -f "${target}" ]]; then
+      echo "INFO: ${name} is already on the volume, reusing it."
+      continue
+    fi
+    echo "INFO: downloading ${url}"
+    if curl --fail --location --show-error --no-progress-meter \
+         --retry 5 --retry-delay 5 --retry-connrefused --connect-timeout 20 \
+         --continue-at - --output "${target}.part" "${url}"; then
+      mv "${target}.part" "${target}"
+      echo "INFO: downloaded ${name} ($(du -h "${target}" | cut -f1))"
+    else
+      rm -f "${target}.part"
+      report_download_failure "${url}"
+      exit 1
+    fi
+  done
+}
+
 if [[ -z "${tile_urls}" ]] && ! test -f "${TILE_TAR}" && ! test -d "${TILE_DIR}"; then
   export tile_urls="${DEFAULT_TILE_URLS}"
   echo "WARNING: tile_urls is not set. Falling back to Monaco:"
@@ -72,8 +111,14 @@ if [[ "${force_rebuild}" == "True" ]]; then
   build_tar="Force"
 fi
 
-# Downloads the PBF, builds tiles, admin + timezone databases, and writes
-# ${CONFIG_FILE}. Skips work already present under ${CUSTOM_FILES}, which is why
+# Nothing to route over yet: pull the extracts before handing over to upstream.
+if ! test -f "${TILE_TAR}" && ! test -d "${TILE_DIR}"; then
+  fetch_extracts
+fi
+
+# Builds tiles, admin + timezone databases, and writes
+# ${CONFIG_FILE} from the extracts on the volume. Skips work already present
+# under ${CUSTOM_FILES}, which is why
 # that path must be a Railway volume: without one this reruns on every deploy.
 /valhalla/scripts/configure_valhalla.sh "${CONFIG_FILE}" "${CUSTOM_FILES}" "${TILE_DIR}" "${TILE_TAR}"
 
